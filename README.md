@@ -22,11 +22,28 @@ pip install yt-dlp requests
 ```
 
 ## Usage
+
+### Minimal
 ```
-python main.py --channel "https://www.youtube.com/c/YOUR_CHANNEL" \\
-               --mediacms-url "https://your-mediacms-instance.com" \\
-               --token "your_api_token" \\
-               --output-dir "./youtube_downloads"
+python yt2mediacms.py --channel "https://www.youtube.com/c/YOUR_CHANNEL" \
+                      --mediacms-url "https://your-mediacms-instance.com" \
+                      --token "your_mediacms_api_token" 
+```
+
+
+### All options
+```
+python yt2mediacms.py --channel "https://www.youtube.com/c/YOUR_CHANNEL" \
+                      --mediacms-url "https://your-mediacms-instance.com" \
+                      --token "your_mediacms_api_token" \
+                      --since YYYYMMDD # (optional) \
+                      --delay 5 # (optional) \
+                      --skip-videos # Only update channel information (optional) \
+                      --skip-channel-update # Do not update the channel information (optional) \
+                      --keep-files # Keep the locally downloaded files (optional) \
+                      --verbose # Add more verbosity to the output (optional) \
+                      --logfile yt2mediacms.log # Keep the output in a file (optional) \
+                      --output-dir "./youtube_downloads" # (optional)
 ```
 
 For more details, check out the script in the repository! 🚀
