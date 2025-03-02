@@ -15,7 +15,7 @@ This script is intended only for backing up videos you own (e.g., your personal 
 - Python 3.x
 - yt-dlp for video downloading
 - requests for MediaCMS API communication
-- 
+
 ## Installation
 ```
 pip install yt-dlp requests
