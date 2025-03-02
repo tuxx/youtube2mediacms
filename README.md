@@ -5,11 +5,11 @@ This script allows you to back up your own YouTube videos to a MediaCMS instance
 This script is intended only for backing up videos you own (e.g., your personal YouTube channel content). Do not use it to download or upload copyrighted content that you do not have permission to redistribute. Unauthorized copying of copyrighted material may violate YouTube’s Terms of Service and copyright laws.
 
 ## Features
-✅ Fetches channel metadata and updates MediaCMS profile
-✅ Downloads videos in the best available format (MP4)
-✅ Extracts and uploads video metadata (title, description, tags)
-✅ Saves thumbnails and uploads them to MediaCMS
-✅ Displays real-time progress, folder size, and error handling
+- ✅ Fetches channel metadata and updates MediaCMS profile
+- ✅ Downloads videos in the best available format (MP4)
+- ✅ Extracts and uploads video metadata (title, description, tags)
+- ✅ Saves thumbnails and uploads them to MediaCMS
+- ✅ Displays real-time progress, folder size, and error handling
 
 ## Requirements
 - Python 3.x
