@@ -48,41 +48,291 @@ def get_dir_size(path):
     
     return f"{total_size:.2f} PB"
 
+import requests
+import re
+import json
+import subprocess
+import urllib.parse
+from bs4 import BeautifulSoup
 
-def get_channel_info(channel_url):
-    """Fetch channel information using yt-dlp"""
-    logger.info(f"Fetching channel information from: {channel_url}")
+def get_channel_info_youtube_api(api_key, channel_url):
+    """Fetch channel information using YouTube Data API v3"""
+    logger.info(f"Fetching channel information from YouTube API: {channel_url}")
+    
+    # Extract channel ID or username from URL
+    channel_id = None
+    username = None
+    
+    if '@' in channel_url:
+        username = channel_url.split('@')[-1]
+    elif 'channel/' in channel_url:
+        channel_id = channel_url.split('channel/')[-1].split('/')[0]
+    
+    if not channel_id and not username:
+        logger.error("Could not extract channel ID or username from URL")
+        return None
+    
+    # Build the API URL
+    base_url = "https://www.googleapis.com/youtube/v3/channels"
+    params = {
+        'key': api_key,
+        'part': 'snippet,statistics'
+    }
+    
+    if channel_id:
+        params['id'] = channel_id
+    else:
+        params['forUsername'] = username
+    
+    try:
+        response = requests.get(base_url, params=params, timeout=20)
+        
+        if response.status_code != 200:
+            logger.error(f"YouTube API error: {response.status_code}")
+            logger.error(response.text)
+            return None
+        
+        data = response.json()
+        
+        if not data.get('items'):
+            logger.error("No channel found")
+            return None
+        
+        channel_data = data['items'][0]
+        snippet = channel_data.get('snippet', {})
+        
+        channel_info = {
+            'channel_id': channel_data.get('id'),
+            'channel_name': snippet.get('title', 'Unknown Channel'),
+            'channel_description': snippet.get('description', ''),
+            'channel_url': channel_url
+        }
+        
+        logger.info(f"Successfully retrieved channel info for: {channel_info['channel_name']}")
+        return channel_info
+        
+    except Exception as e:
+        logger.error(f"Exception while getting channel info: {str(e)}")
+        return None
+
+
+def get_channel_info_web_scraping(channel_url):
+    """Fetch channel information using web scraping"""
+    logger.info(f"Fetching channel information via web scraping: {channel_url}")
+    
+    headers = {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+    }
+    
+    try:
+        response = requests.get(channel_url, headers=headers, timeout=20)
+        
+        if response.status_code != 200:
+            logger.error(f"Failed to fetch channel page: {response.status_code}")
+            return None
+        
+        soup = BeautifulSoup(response.text, 'html.parser')
+        
+        # Try to extract metadata from the page
+        # This is fragile and may break with YouTube UI changes
+        channel_name = soup.find('meta', property='og:title')
+        channel_name = channel_name['content'] if channel_name else 'Unknown Channel'
+        
+        description_meta = soup.find('meta', {'name': 'description'})
+        channel_description = description_meta['content'] if description_meta else ''
+        
+        # Extract channel ID from script tags
+        channel_id = None
+        scripts = soup.find_all('script')
+        for script in scripts:
+            if script.string and 'channelId' in script.string:
+                match = re.search(r'"channelId":"([^"]+)"', script.string)
+                if match:
+                    channel_id = match.group(1)
+                    break
+        
+        if not channel_id:
+            # Extract from URL as fallback
+            if '@' in channel_url:
+                channel_id = channel_url.split('@')[-1]
+        
+        channel_info = {
+            'channel_id': channel_id,
+            'channel_name': channel_name,
+            'channel_description': channel_description,
+            'channel_url': channel_url
+        }
+        
+        logger.info(f"Successfully retrieved channel info for: {channel_info['channel_name']}")
+        return channel_info
+        
+    except Exception as e:
+        logger.error(f"Exception while scraping channel info: {str(e)}")
+        return None
+
+
+def get_channel_info_youtube_dl(channel_url):
+    """Fetch channel information using youtube-dl (alternative to yt-dlp)"""
+    logger.info(f"Fetching channel information using youtube-dl: {channel_url}")
+    
     cmd = [
-        'yt-dlp',
+        'youtube-dl',
         '--skip-download',
-        '--print', '%(channel_id)s',
-        '--print', '%(channel)s',
-        '--print', '%(channel_description)s',
-        '--print', '%(channel_url)s',
+        '--no-warnings',
+        '--get-id',
+        '--get-title',
+        '--get-description',
         channel_url
     ]
     
-    result = run(cmd, stdout=PIPE, stderr=PIPE, text=True)
+    try:
+        # Use a longer timeout
+        result = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, 
+                                text=True, timeout=45)
+        
+        if result.returncode != 0:
+            logger.error(f"Error fetching channel with youtube-dl: {result.stderr}")
+            return None
+        
+        lines = result.stdout.strip().split('\n')
+        
+        # Default values
+        channel_id = None
+        channel_name = "YouTube Channel"
+        channel_description = "Imported from YouTube"
+        
+        if lines and len(lines) >= 1:
+            channel_id = lines[0]
+        if len(lines) >= 2:
+            channel_name = lines[1]
+        if len(lines) >= 3:
+            channel_description = '\n'.join(lines[2:])
+        
+        channel_info = {
+            'channel_id': channel_id,
+            'channel_name': channel_name,
+            'channel_description': channel_description,
+            'channel_url': channel_url
+        }
+        
+        logger.info(f"Successfully retrieved channel info for: {channel_info['channel_name']}")
+        return channel_info
+        
+    except subprocess.TimeoutExpired:
+        logger.error("youtube-dl process timed out")
+        return None
+    except Exception as e:
+        logger.error(f"Exception while getting channel info with youtube-dl: {str(e)}")
+        return None
+
+
+def get_channel_info_invidious(channel_url, invidious_instance="https://invidious.snopyta.org"):
+    """Fetch channel information using Invidious API (a YouTube alternative)"""
+    logger.info(f"Fetching channel information via Invidious: {channel_url}")
     
-    if result.returncode != 0:
-        logger.error(f"Error fetching channel information: {result.stderr}")
+    # Extract channel ID or username from URL
+    channel_id = None
+    
+    if '@' in channel_url:
+        username = channel_url.split('@')[-1].split('/')[0]
+        api_url = f"{invidious_instance}/api/v1/search?q={urllib.parse.quote(username)}&type=channel"
+    elif 'channel/' in channel_url:
+        channel_id = channel_url.split('channel/')[-1].split('/')[0]
+        api_url = f"{invidious_instance}/api/v1/channels/{channel_id}"
+    else:
+        logger.error("Could not extract channel ID or username from URL")
         return None
     
-    # Output format is channel_id, channel_name, channel_description, channel_url each on a new line
-    output_lines = result.stdout.strip().split('\n')
-    if len(output_lines) >= 3:
+    try:
+        response = requests.get(api_url, timeout=20)
+        
+        if response.status_code != 200:
+            logger.error(f"Invidious API error: {response.status_code}")
+            return None
+        
+        data = response.json()
+        
+        # Handle search results if searching by username
+        if '@' in channel_url and isinstance(data, list):
+            if not data:
+                logger.error("No channel found in search results")
+                return None
+            
+            # Use the first channel in search results
+            channel_data = data[0]
+            channel_id = channel_data.get('authorId')
+            
+            # Now fetch the specific channel
+            channel_api_url = f"{invidious_instance}/api/v1/channels/{channel_id}"
+            response = requests.get(channel_api_url, timeout=20)
+            
+            if response.status_code != 200:
+                logger.error(f"Invidious channel API error: {response.status_code}")
+                return None
+                
+            data = response.json()
+        
         channel_info = {
-            'channel_id': output_lines[0],
-            'channel_name': output_lines[1],
-            'channel_description': output_lines[2],
-            'channel_url': output_lines[3] if len(output_lines) > 3 else channel_url
+            'channel_id': data.get('authorId'),
+            'channel_name': data.get('author', 'Unknown Channel'),
+            'channel_description': data.get('description', ''),
+            'channel_url': channel_url
         }
-        logger.info(f"Successfully retrieved channel info for: {channel_info['channel_name']} (ID: {channel_info['channel_id']})")
+        
+        logger.info(f"Successfully retrieved channel info for: {channel_info['channel_name']}")
+        return channel_info
+        
+    except Exception as e:
+        logger.error(f"Exception while getting channel info from Invidious: {str(e)}")
+        return None
+
+
+def get_channel_info_fallback(channel_url):
+    """Combined approach to try different methods for fetching channel info"""
+    logger.info(f"Trying multiple methods to fetch channel info for: {channel_url}")
+    
+    # Method 1: Try with standard web scraping
+    channel_info = get_channel_info_web_scraping(channel_url)
+    if channel_info:
         return channel_info
     
-    logger.error("Could not parse channel information from yt-dlp output")
-    return None
-
+    # Method 2: Try with youtube-dl if installed
+    try:
+        subprocess.run(['youtube-dl', '--version'], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        channel_info = get_channel_info_youtube_dl(channel_url)
+        if channel_info:
+            return channel_info
+    except:
+        logger.warning("youtube-dl not available, skipping this method")
+    
+    # Method 3: Try with Invidious API
+    invidious_instances = [
+        "https://invidious.snopyta.org",
+        "https://invidious.kavin.rocks",
+        "https://vid.puffyan.us"
+    ]
+    
+    for instance in invidious_instances:
+        try:
+            channel_info = get_channel_info_invidious(channel_url, instance)
+            if channel_info:
+                return channel_info
+        except:
+            continue
+    
+    # Final fallback: Create minimal info from URL
+    logger.warning("All methods failed, using minimal channel info from URL")
+    channel_name = "Unknown Channel"
+    
+    if '@' in channel_url:
+        channel_name = channel_url.split('@')[-1].split('/')[0]
+    
+    return {
+        'channel_id': channel_name,
+        'channel_name': channel_name,
+        'channel_description': f"Imported from YouTube: {channel_url}",
+        'channel_url': channel_url
+    }
 
 def update_mediacms_channel(mediacms_url, token, channel_info):
     """Update or create a channel on MediaCMS with YouTube channel information"""
@@ -95,37 +345,50 @@ def update_mediacms_channel(mediacms_url, token, channel_info):
     }
     
     # Get current user info
-    response = requests.get(channels_url, headers=headers)
-    if response.status_code != 200:
-        logger.error(f"Failed to get user information: {response.status_code}")
-        logger.error(response.text)
+    try:
+        response = requests.get(channels_url, headers=headers, timeout=30)
+        
+        if response.status_code != 200:
+            logger.error(f"Failed to get user information: {response.status_code}")
+            logger.error(response.text)
+            return False
+        
+        # Update user profile with channel description
+        user_data = response.json()
+        
+        update_data = {
+            'description': f"YouTube Channel: {channel_info['channel_name']}\n\n{channel_info['channel_description']}\n\nOriginal YouTube URL: {channel_info['channel_url']}"
+        }
+        
+        # If user has username or name fields, we could update those too
+        if 'name' in user_data and not user_data['name']:
+            update_data['name'] = channel_info['channel_name']
+        
+        # Update the user profile
+        update_url = f"{mediacms_url.rstrip('/')}/api/v1/users/me/"
+        response = requests.patch(
+            update_url,
+            headers=headers,
+            data=json.dumps(update_data),
+            timeout=30
+        )
+        
+        if response.status_code == 200:
+            logger.info(f"Successfully updated MediaCMS channel with YouTube channel information")
+            return True
+        else:
+            logger.error(f"Failed to update MediaCMS channel: {response.status_code}")
+            logger.error(response.text)
+            return False
+            
+    except requests.exceptions.Timeout:
+        logger.error("Timeout while connecting to MediaCMS API")
         return False
-    
-    # Update user profile with channel description
-    user_data = response.json()
-    
-    update_data = {
-        'description': f"YouTube Channel: {channel_info['channel_name']}\n\n{channel_info['channel_description']}\n\nOriginal YouTube URL: {channel_info['channel_url']}"
-    }
-    
-    # If user has username or name fields, we could update those too
-    if 'name' in user_data and not user_data['name']:
-        update_data['name'] = channel_info['channel_name']
-    
-    # Update the user profile
-    update_url = f"{mediacms_url.rstrip('/')}/api/v1/users/me/"
-    response = requests.patch(
-        update_url,
-        headers=headers,
-        data=json.dumps(update_data)
-    )
-    
-    if response.status_code == 200:
-        logger.info(f"Successfully updated MediaCMS channel with YouTube channel information")
-        return True
-    else:
-        logger.error(f"Failed to update MediaCMS channel: {response.status_code}")
-        logger.error(response.text)
+    except requests.exceptions.RequestException as e:
+        logger.error(f"Error connecting to MediaCMS API: {e}")
+        return False
+    except Exception as e:
+        logger.error(f"Unexpected error updating channel: {e}")
         return False
 
 
@@ -274,6 +537,7 @@ def upload_to_mediacms(video_file, mediacms_url, token, metadata=None, cleanup=T
         logger.info(f"Starting upload to {upload_url}...")
         
         try:
+            # No timeout for upload as large files may take time
             response = requests.post(upload_url, headers=headers, data=data, files=files)
         except Exception as e:
             logger.error(f"Exception during upload: {e}")
@@ -326,7 +590,6 @@ def clean_up_files(video_file):
     except Exception as e:
         logger.error(f"Error during file cleanup: {e}")
 
-
 def main():
     parser = argparse.ArgumentParser(description='Backup YouTube channel to MediaCMS')
     parser.add_argument('--channel', required=True, help='YouTube channel URL')
@@ -340,6 +603,9 @@ def main():
     parser.add_argument('--keep-files', action='store_true', help='Keep downloaded files after upload')
     parser.add_argument('--verbose', '-v', action='store_true', help='Enable verbose output')
     parser.add_argument('--log-file', help='Log to specified file in addition to console')
+    parser.add_argument('--youtube-api-key', help='YouTube Data API v3 key (optional)')
+    parser.add_argument('--fetch-method', choices=['youtube-api', 'web-scraping', 'youtube-dl', 'invidious', 'fallback'], 
+                      default='fallback', help='Method to fetch YouTube channel info')
     args = parser.parse_args()
     
     # Configure additional logging options
@@ -355,15 +621,38 @@ def main():
     
     logger.info(f"Starting YouTube to MediaCMS backup process")
     
-    # Get channel information
+    # Get channel information using the selected method
     if not args.skip_channel_update:
-        channel_info = get_channel_info(args.channel)
-        if channel_info:
-            update_mediacms_channel(args.mediacms_url, args.token, channel_info)
-        else:
-            logger.error("Could not fetch channel information.")
+        try:
+            # Choose the appropriate channel info fetching method
+            channel_info = None
+            
+            if args.fetch_method == 'youtube-api':
+                if not args.youtube_api_key:
+                    logger.error("YouTube API key is required when using youtube-api method")
+                    return
+                channel_info = get_channel_info_youtube_api(args.youtube_api_key, args.channel)
+            elif args.fetch_method == 'web-scraping':
+                channel_info = get_channel_info_web_scraping(args.channel)
+            elif args.fetch_method == 'youtube-dl':
+                channel_info = get_channel_info_youtube_dl(args.channel)
+            elif args.fetch_method == 'invidious':
+                channel_info = get_channel_info_invidious(args.channel)
+            else:  # fallback method
+                logger.info("Using fallback method to fetch channel info")
+                channel_info = get_channel_info_fallback(args.channel)
+            
+            if channel_info:
+                logger.info(f"Channel info retrieved for: {channel_info['channel_name']}")
+                update_mediacms_channel(args.mediacms_url, args.token, channel_info)
+            else:
+                logger.error("Could not fetch channel information with any method.")
+                if args.skip_videos:
+                    return  # Nothing to do if skipping videos and channel update failed
+        except Exception as e:
+            logger.error(f"Error during channel update: {e}")
             if args.skip_videos:
-                return  # Nothing to do if skipping videos and channel update failed
+                return
     
     if args.skip_videos:
         logger.info("Skipping video download and upload as requested.")
@@ -411,7 +700,6 @@ def main():
     logger.info(f"Backup process completed. Successfully uploaded {success_count} videos. Failed: {fail_count}")
     if not args.keep_files and success_count > 0:
         logger.info(f"All successfully uploaded files have been cleaned up.")
-
 
 if __name__ == "__main__":
     try:
