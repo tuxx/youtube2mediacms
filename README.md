@@ -54,7 +54,7 @@ The following environment variables can be set to customize the behavior of the 
 
 ## Development
 
-### Requirements
+#### Requirements
 - Python 3.x
   - `requests` for MediaCMS API communication
   - `google-api-python-client` for YouTube API interactions
