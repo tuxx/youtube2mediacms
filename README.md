@@ -15,7 +15,7 @@ This script is intended only for backing up videos you own (e.g., your personal 
 
 ## Usage
 
-Official docker image: [Docker Image](https://hub.docker.com/repository/docker/tuxxness/youtube2mediacms/general)
+Official docker image: [Docker Image](https://hub.docker.com/r/tuxxness/youtube2mediacms)
 
 ### With Docker
 
