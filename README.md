@@ -13,41 +13,12 @@ This script is intended only for backing up videos you own (e.g., your personal 
 - ✅ Displays real-time progress, folder size, and error handling
 - ✅ Cleans up downloaded files after successful upload (optional)
 
-## Requirements
-- Python 3.x
-  - `requests` for MediaCMS API communication
-  - `google-api-python-client` for YouTube API interactions
-- `yt-dlp` installed on your system.
-- YouTube Data API v3 api key [Instructions](#youtube-data-api-v3-key)
-
-
-## Development
-
-**Arch Linux**
-
-`pacman -S yt-dlp`
-
-**Debian Derivates**
-
-`apt install yt-dlp`
-
-**Running the code**
-```bash
-git clone https://github.com/tuxx/youtube2mediacms
-cd youtube2mediacms
-python3 -m venv virtual
-source virtual/bin/activate
-pip install -r requirements.txt
-```
-
 ## Usage
 
-### With python
-```bash
-python yt2mediacms.py --channel CHANNEL_URL --yt-api-key YOUTUBE_API_KEY --mediacms-url MEDIACMS_URL --token MEDIACMS_API_TOKEN
-```
-
 ### With Docker
+
+- [Docker Image](https://hub.docker.com/repository/docker/tuxxness/youtube2mediacms/general)
+
 ```bash
 docker run -e CHANNEL_URL="your_channel_url" \
            -e YT_API_KEY="your_api_key" \
@@ -63,7 +34,56 @@ docker run -e CHANNEL_URL="your_channel_url" \
           tuxxness/youtube2mediacms:latest 
 ```
 
-### Command Line Arguments
+### Environment Variables
+The following environment variables can be set to customize the behavior of the yt2mediacms script:
+
+| Variable | Required | Default Value | Description |
+|-------------------------|----------|---------------|--------------------------------------------------------------|
+| CHANNEL_URL | Yes | - | YouTube channel URL or ID |
+| YT_API_KEY | Yes | - | YouTube Data API v3 key |
+| MEDIACMS_URL | Yes | - | MediaCMS instance URL |
+| TOKEN | Yes | - | MediaCMS API token |
+| SINCE | No | - | Only download videos published after this date (YYYYMMDD) |
+| DELAY | No | 5 | Delay between uploads in seconds |
+| SKIP_VIDEOS | No | False | Set to True to skip video downloading |
+| SKIP_CHANNEL_UPDATE | No | False | Set to True to skip updating channel information |
+| KEEP_FILES | No | False | Set to True to keep downloaded files after upload |
+| VERBOSE | No | False | Set to True to enable verbose output |
+| LOG_FILE | No | - | Specify a log file to log output in addition to the console |
+
+
+## Development
+
+### Requirements
+- Python 3.x
+  - `requests` for MediaCMS API communication
+  - `google-api-python-client` for YouTube API interactions
+- `yt-dlp` installed on your system.
+- YouTube Data API v3 api key [Instructions](#youtube-data-api-v3-key)
+
+#### Arch Linux
+
+`pacman -S yt-dlp`
+
+#### Debian Derivates
+
+`apt install yt-dlp`
+
+#### Installing python stuff
+```bash
+git clone https://github.com/tuxx/youtube2mediacms
+cd youtube2mediacms
+python3 -m venv virtual
+source virtual/bin/activate
+pip install -r requirements.txt
+```
+
+#### Running the code
+```bash
+python yt2mediacms.py --channel CHANNEL_URL --yt-api-key YOUTUBE_API_KEY --mediacms-url MEDIACMS_URL --token MEDIACMS_API_TOKEN
+```
+
+##### Command Line Arguments
 
 | Argument | Required | Default | Description |
 |----------|:--------:|:-------:|-------------|
@@ -78,23 +98,6 @@ docker run -e CHANNEL_URL="your_channel_url" \
 | `--keep-files` | No | `False` | Keep downloaded files after upload |
 | `--verbose`, `-v` | No | `False` | Enable verbose output |
 | `--log-file` | No | - | Log to specified file in addition to console |
-
-### Examples
-
-Download all videos from a channel:
-```bash
-python yt2mediacms.py --channel https://www.youtube.com/c/ChannelID --yt-api-key YOUR_YT_API_KEY --mediacms-url https://your-mediacms.com --token MEDIACMS_API_TOKEN
-```
-
-Download only videos published after January 1, 2023:
-```bash
-python yt2mediacms.py --channel https://www.youtube.com/c/ChannelID --yt-api-key YOUR_YT_API_KEY --mediacms-url https://your-mediacms.com --token MEDIACMS_API_TOKEN --since 20230101
-```
-
-Skip video downloads and only update channel information:
-```bash
-python yt2mediacms.py --channel https://www.youtube.com/c/ChannelID --yt-api-key YOUR_YT_API_KEY --mediacms-url https://your-mediacms.com --token MEDIACMS_API_TOKEN --skip-videos
-```
 
 ## Youtube Data API v3 key
 
