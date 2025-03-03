@@ -28,6 +28,16 @@ docker run -e CHANNEL_URL="your_channel_url" \
           tuxxness/youtube2mediacms:latest 
 ```
 
+#### Saving the downloaded videos to a local directory
+```bash
+docker run -e CHANNEL_URL="your_channel_url" \
+           -e YT_API_KEY="your_api_key" \
+           -e MEDIACMS_URL="your_mediacms_url" \
+           -e TOKEN="your_token" \
+           -v ./youtube_downloads:/app/youtube_downloads \ # Using a volume to keep the downloaded videos when the container stops.
+          tuxxness/youtube2mediacms:latest 
+```
+
 #### All the environment variables
 ```bash
 docker run -e CHANNEL_URL="your_channel_url" \
