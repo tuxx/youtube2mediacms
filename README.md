@@ -44,22 +44,6 @@ docker run -v ./youtube_downloads:/app/youtube_downloads tuxxness/youtube2mediac
            --token "your_token"
 ```
 
-#### All the command-line arguments
-```bash
-docker run tuxxness/youtube2mediacms:latest \
-           --channel "your_channel_url" \
-           --yt-api-key "your_api_key" \
-           --mediacms-url "your_mediacms_url" \
-           --token "your_token" \
-           --since "20230101" \  # Optional: specify if you want to filter by date
-           --delay "5" \         # Optional: specify delay between uploads
-           --skip-videos "True" \  # Set to True to skip video downloads
-           --skip-channel-update "False" \  # Set to False to not skip channel update
-           --keep-files "False" \  # Set to False to not keep downloaded files
-           --verbose "True" \      # Set to True for verbose output
-           --log-file "log.txt"   # Optional: specify a log file
-```
-
 ##### Command Line Arguments
 
 | Argument | Required | Default | Description |
@@ -107,7 +91,6 @@ pip install -r requirements.txt
 ```bash
 python yt2mediacms.py --channel CHANNEL_URL --yt-api-key YOUTUBE_API_KEY --mediacms-url MEDIACMS_URL --token MEDIACMS_API_TOKEN
 ```
-
 
 ## Youtube Data API v3 key
 
