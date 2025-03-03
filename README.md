@@ -15,10 +15,20 @@ This script is intended only for backing up videos you own (e.g., your personal 
 
 ## Usage
 
+Official docker image: [Docker Image](https://hub.docker.com/repository/docker/tuxxness/youtube2mediacms/general)
+
 ### With Docker
 
-- [Docker Image](https://hub.docker.com/repository/docker/tuxxness/youtube2mediacms/general)
+#### Minimal
+```bash
+docker run -e CHANNEL_URL="your_channel_url" \
+           -e YT_API_KEY="your_api_key" \
+           -e MEDIACMS_URL="your_mediacms_url" \
+           -e TOKEN="your_token" \
+          tuxxness/youtube2mediacms:latest 
+```
 
+#### All the environment variables
 ```bash
 docker run -e CHANNEL_URL="your_channel_url" \
            -e YT_API_KEY="your_api_key" \
