@@ -20,7 +20,7 @@ Official docker image: [Docker Image](https://hub.docker.com/repository/docker/t
 ### With Docker
 
 #### Requirements
-- docker
+- docker installed on your system. [Instructions](https://www.docker.com/get-started/)
 - YouTube Data API v3 api key [Instructions](#youtube-data-api-v3-key)
 
 #### Minimal
