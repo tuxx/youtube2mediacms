@@ -41,7 +41,8 @@ docker run -v ./youtube_downloads:/app/youtube_downloads tuxxness/youtube2mediac
            --channel "your_channel_url" \
            --yt-api-key "your_api_key" \
            --mediacms-url "your_mediacms_url" \
-           --token "your_token"
+           --token "your_token" \
+           --keep-files
 ```
 
 ##### Command Line Arguments
