@@ -21,7 +21,7 @@ This script is intended only for backing up videos you own (e.g., your personal 
 - YouTube Data API v3 api key [Instructions](#youtube-data-api-v3-key)
 
 
-## Installation
+## Development
 
 **Arch Linux**
 
@@ -35,12 +35,32 @@ This script is intended only for backing up videos you own (e.g., your personal 
 ```bash
 git clone https://github.com/tuxx/youtube2mediacms
 cd youtube2mediacms
+python3 -m venv virtual
+source virtual/bin/activate
 pip install -r requirements.txt
 ```
 
 ## Usage
+
+### With python
 ```bash
 python yt2mediacms.py --channel CHANNEL_URL --yt-api-key YOUTUBE_API_KEY --mediacms-url MEDIACMS_URL --token MEDIACMS_API_TOKEN
+```
+
+### With Docker
+```bash
+docker run -e CHANNEL_URL="your_channel_url" \
+           -e YT_API_KEY="your_api_key" \
+           -e MEDIACMS_URL="your_mediacms_url" \
+           -e TOKEN="your_token" \
+           -e SINCE="20230101" \  # Optional: specify if you want to filter by date
+           -e DELAY="5" \         # Optional: specify delay between uploads
+           -e SKIP_VIDEOS="True" \  # Set to True to skip video downloads
+           -e SKIP_CHANNEL_UPDATE="False" \  # Set to False to not skip channel update
+           -e KEEP_FILES="False" \  # Set to False to not keep downloaded files
+           -e VERBOSE="True" \      # Set to True for verbose output
+           -e LOG_FILE="log.txt" \  # Optional: specify a log file
+          tuxxness/youtube2mediacms:latest 
 ```
 
 ### Command Line Arguments
