@@ -24,9 +24,11 @@ This script is intended only for backing up videos you own (e.g., your personal 
 ## Installation
 
 **Arch Linux**
+
 `pacman -S yt-dlp`
 
 **Debian Derivates**
+
 `apt install yt-dlp`
 
 **Running the code**
@@ -79,8 +81,8 @@ python yt2mediacms.py --channel https://www.youtube.com/c/ChannelID --yt-api-key
 #### Step 1: Create a Google Cloud Project
 1. Go to the [Google Cloud Console](https://console.cloud.google.com/).
 2. If you don’t have a project yet, create a new one:
-  - Click on the project dropdown (top left) → **New Project**.
-  - Give it a name and click **Create**.
+     - Click on the project dropdown (top left) → **New Project**.
+     - Give it a name and click **Create**.
 
 #### Step 2: Enable the YouTube API
 1. In the Cloud Console, go to **APIs & Services** → **Library**.
