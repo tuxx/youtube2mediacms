@@ -19,6 +19,10 @@ Official docker image: [Docker Image](https://hub.docker.com/repository/docker/t
 
 ### With Docker
 
+#### Requirements
+- docker
+- YouTube Data API v3 api key [Instructions](#youtube-data-api-v3-key)
+
 #### Minimal
 ```bash
 docker run -e CHANNEL_URL="your_channel_url" \
