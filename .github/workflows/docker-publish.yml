@@ -29,5 +29,5 @@ jobs:
           file: Dockerfile
           push: true
           tags: |
-            tuxxness/youtube2mediacms:${{ github.ref }}
+            tuxxness/youtube2mediacms:${{ github.ref_name }}
             tuxxness/youtube2mediacms:latest
