@@ -1,0 +1,19 @@
+{
+    "mediacms": {
+        "token": "YOUR_MEDIACMS_TOKEN",
+        "url": "https://your.mediacms.instance"
+    },
+    "yt_api_key": "YOUR_YT_API_KEY",
+    "channels": [
+        {
+            "name": "Channel One",
+            "yt_id": "UCxxxxxxxxxxxxxxxxx",
+            "mediacms_id": "Username"
+        },
+        {
+            "name": "Channel Two",
+            "yt_id": "UCxxxxxxxxxxxxxxxxx",
+            "mediacms_id": "Username"
+        }
+    ]
+}
