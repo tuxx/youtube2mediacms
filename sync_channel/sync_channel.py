@@ -9,6 +9,15 @@ def load_config():
     with open(CONFIG_FILE, "r") as f:
         return json.load(f)
 
+def extract_channel_id(yt_channel_str):
+    """
+    If yt_channel_str is a full URL, extract and return the channel id.
+    Otherwise, assume it's already the channel id.
+    """
+    if yt_channel_str.startswith("http"):
+        return yt_channel_str.rstrip("/").split("/")[-1]
+    return yt_channel_str
+
 def get_latest_video_info(yt_channel_id, yt_api_key):
     """
     Retrieves the latest video from the YouTube Data API for the given channel.
@@ -79,15 +88,18 @@ def format_since_date(date_str):
         return "19700101"
 
 def sync_channel(channel, mediacms_token, mediacms_url, yt_api_key):
-    yt_channel_id = channel["yt_id"]
+    # Use the full URL from config for the docker command.
+    full_yt_channel_url = channel["yt_id"]
+    # Extract the channel id for API calls.
+    extracted_yt_channel_id = extract_channel_id(full_yt_channel_url)
     mc_channel_id = channel["mediacms_id"]
-    channel_name = channel.get("name", yt_channel_id)
+    channel_name = channel.get("name", full_yt_channel_url)
     
     print(f"Checking channel {channel_name}...")
     
-    yt_video_id, yt_published, yt_title = get_latest_video_info(yt_channel_id, yt_api_key)
+    yt_video_id, yt_published, yt_title = get_latest_video_info(extracted_yt_channel_id, yt_api_key)
     if not yt_title:
-        print(f"Could not retrieve YouTube info for channel {yt_channel_id}")
+        print(f"Could not retrieve YouTube info for channel {extracted_yt_channel_id}")
         return
 
     mediacms_title, mediacms_published = get_latest_mediacms_video_info(mediacms_url, mediacms_token, mc_channel_id)
@@ -100,7 +112,7 @@ def sync_channel(channel, mediacms_token, mediacms_url, yt_api_key):
         cmd = [
             "docker", "run", "--rm",
             "tuxxness/youtube2mediacms:latest",
-            "--channel", yt_channel_id,
+            "--channel", full_yt_channel_url,  # full URL passed to the container
             "--mediacms-url", mediacms_url,
             "--token", mediacms_token,
             "--yt-api-key", yt_api_key,
@@ -125,4 +137,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-

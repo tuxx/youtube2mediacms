@@ -7,12 +7,12 @@
     "channels": [
         {
             "name": "Channel One",
-            "yt_id": "UCxxxxxxxxxxxxxxxxx",
+            "yt_id": "https://www.youtube.com/channel/UCxxxxxxxxxxxxxxxxx",
             "mediacms_id": "Username"
         },
         {
             "name": "Channel Two",
-            "yt_id": "UCxxxxxxxxxxxxxxxxx",
+            "yt_id": "https://www.youtube.com/channel/UCxxxxxxxxxxxxxxxxx",
             "mediacms_id": "Username"
         }
     ]
