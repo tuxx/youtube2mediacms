@@ -2,6 +2,8 @@
 
 This script allows you to sync your YouTube videos to a MediaCMS instance. It offers robust channel synchronization, metadata updates, and support for individual video uploads.
 
+- [Official Docker Image](https://hub.docker.com/r/tuxxness/youtube2mediacms)
+
 ## ⚠️ Important Notice
 This script is intended only for syncing videos you own (e.g., your personal YouTube channel content). Do not use it to download or upload copyrighted content that you do not have permission to redistribute. Unauthorized copying of copyrighted material may violate YouTube's Terms of Service and copyright laws.
 
