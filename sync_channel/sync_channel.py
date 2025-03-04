@@ -1,9 +1,7 @@
-import feedparser
 import subprocess
 import json
-import os
 import requests
-from dateutil import parser as date_parser 
+from dateutil import parser as date_parser  # pip install python-dateutil
 
 CONFIG_FILE = "config.json"
 
@@ -11,19 +9,36 @@ def load_config():
     with open(CONFIG_FILE, "r") as f:
         return json.load(f)
 
-def get_latest_video_info(yt_channel_id):
+def get_latest_video_info(yt_channel_id, yt_api_key):
     """
-    Retrieves the latest video from the YouTube channel's RSS feed.
+    Retrieves the latest video from the YouTube Data API for the given channel.
     Returns a tuple: (video_id, published, title)
+    This method returns Shorts as well as regular videos.
     """
-    rss_url = f"https://www.youtube.com/feeds/videos.xml?channel_id={yt_channel_id}"
-    feed = feedparser.parse(rss_url)
-    if feed.entries:
-        latest_entry = feed.entries[0]
-        video_id = latest_entry.yt_videoid
-        published = latest_entry.published  # e.g. "2023-03-07T15:30:00Z"
-        title = latest_entry.title
-        return video_id, published, title
+    api_url = "https://www.googleapis.com/youtube/v3/search"
+    params = {
+        "key": yt_api_key,
+        "channelId": yt_channel_id,
+        "part": "snippet,id",
+        "order": "date",
+        "maxResults": 1
+    }
+    try:
+        response = requests.get(api_url, params=params)
+        response.raise_for_status()
+        data = response.json()
+        items = data.get("items", [])
+        if items:
+            latest_item = items[0]
+            if latest_item["id"]["kind"] == "youtube#video":
+                video_id = latest_item["id"]["videoId"]
+                published = latest_item["snippet"]["publishedAt"]
+                title = latest_item["snippet"]["title"]
+                return video_id, published, title
+        else:
+            print(f"No items found for channel {yt_channel_id}")
+    except Exception as e:
+        print(f"Error retrieving video info from YouTube API for channel {yt_channel_id}: {e}")
     return None, None, None
 
 def get_latest_mediacms_video_info(mediacms_url, token, mc_channel_id):
@@ -39,17 +54,29 @@ def get_latest_mediacms_video_info(mediacms_url, token, mc_channel_id):
     }
     try:
         response = requests.get(api_url, headers=headers)
-        if response.status_code == 200:
-            data = response.json()
-            results = data.get("results")
-            if results and len(results) > 0:
-                video = results[0]
-                return video.get("title"), video.get("add_date")
+        response.raise_for_status()
+        data = response.json()
+        results = data.get("results")
+        if results and len(results) > 0:
+            video = results[0]
+            return video.get("title"), video.get("add_date")
         else:
-            print(f"Error querying Mediacms for channel {mc_channel_id}: HTTP {response.status_code}")
+            print(f"No media found for channel {mc_channel_id}")
     except Exception as e:
         print(f"Error retrieving Mediacms video for channel {mc_channel_id}: {e}")
     return None, None
+
+def format_since_date(date_str):
+    """
+    Convert a date string (e.g. "2025-03-02T17:47:12.768543Z") to the YYYYMMDD format.
+    If the conversion fails, return a default of "19700101".
+    """
+    try:
+        dt = date_parser.parse(date_str)
+        return dt.strftime("%Y%m%d")
+    except Exception as e:
+        print(f"Error parsing date '{date_str}': {e}")
+        return "19700101"
 
 def sync_channel(channel, mediacms_token, mediacms_url, yt_api_key):
     yt_channel_id = channel["yt_id"]
@@ -58,7 +85,7 @@ def sync_channel(channel, mediacms_token, mediacms_url, yt_api_key):
     
     print(f"Checking channel {channel_name}...")
     
-    yt_video_id, yt_published, yt_title = get_latest_video_info(yt_channel_id)
+    yt_video_id, yt_published, yt_title = get_latest_video_info(yt_channel_id, yt_api_key)
     if not yt_title:
         print(f"Could not retrieve YouTube info for channel {yt_channel_id}")
         return
@@ -68,17 +95,16 @@ def sync_channel(channel, mediacms_token, mediacms_url, yt_api_key):
     # Compare the latest video titles. If they differ (or if Mediacms has no video), assume a new video is available.
     if mediacms_title != yt_title:
         print(f"New video detected for {channel_name}.")
-        # Use the Mediacms add_date if available; otherwise, default to a very early date.
-        since_arg = mediacms_published if mediacms_published is not None else "1970-01-01T00:00:00Z"
+        # Format the Mediacms add_date as YYYYMMDD; default to "19700101" if no date is available.
+        since_arg = format_since_date(mediacms_published) if mediacms_published else "19700101"
         cmd = [
             "docker", "run", "--rm",
             "tuxxness/youtube2mediacms:latest",
-            "--since", since_arg,
-            "--yt-channel", yt_channel_id,
-            "--mediacms-channel", mc_channel_id,
+            "--channel", yt_channel_id,
+            "--mediacms-url", mediacms_url,
             "--token", mediacms_token,
-            "--mediacms_url", mediacms_url,
-            "--yt-api-key", yt_api_key
+            "--yt-api-key", yt_api_key,
+            "--since", since_arg
         ]
         print("Running command:", " ".join(cmd))
         subprocess.run(cmd)
@@ -99,3 +125,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+

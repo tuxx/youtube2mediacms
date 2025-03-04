@@ -15,4 +15,5 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy the Python script and any other necessary files
 COPY yt2mediacms.py .
 
-CMD python yt2mediacms.py
+ENTRYPOINT ["python", "yt2mediacms.py"]
+
