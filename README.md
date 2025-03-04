@@ -61,6 +61,22 @@ docker run -v ./youtube_downloads:/app/youtube_downloads tuxxness/youtube2mediac
 | `--verbose`, `-v` | No | `False` | Enable verbose output |
 | `--log-file` | No | - | Log to specified file in addition to console |
 
+##  🚧 Scheduled task to keep the channel synced  🚧 
+
+Being developed. Use at your own risk.
+
+### Usage
+
+#### Config
+Copy the `sync_channel/config.json.example` to a place you like. Edit the `sync_channel/sync_channel.py` script `CONFIG` line so it reflects where the config file is.
+
+#### Crontab
+
+Make a crontab entry
+
+```
+*/15 * * * * /usr/bin/python3 /path/to/your/sync_channel.py >> /path/to/logfile.log 2>&1
+```
 
 ## Development
 
