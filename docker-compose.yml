@@ -1,0 +1,21 @@
+services:
+  youtube2mediacms:
+    image: tuxxness/youtube2mediacms:latest
+    container_name: youtube2mediacms
+    restart: "no"
+    volumes:
+      - ./config.json:/app/config.json
+      # Uncomment the line below to keep downloaded files. And set the --keep-files option.
+      # - ./downloads:/app/youtube_downloads
+    # Uncomment the line below for better network performance with large uploads
+    # network_mode: host
+    command: >
+      --youtube-channel "Channel Name"
+      # Possible command options (uncomment/edit as needed):
+      # --mode full
+      # --update-channel
+      # --video-ids "video_id1" "video_id2"
+      # --mediacms-username "Username"
+      # --keep-files
+      # --delay 10
+      # --verbose
