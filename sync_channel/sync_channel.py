@@ -83,7 +83,7 @@ def sync_channel(channel, mediacms_token, mediacms_url, yt_api_key):
 
     # Retrieve the last video info from Mediacms.
     mediacms_title, mediacms_published = get_latest_mediacms_video_info(mediacms_url, mediacms_token, mc_channel_id)
-    
+
     # Use mediacms_published as the threshold (if available) or default to a very early date.
     if mediacms_published:
         published_after = mediacms_published  # expecting an ISO 8601 string
@@ -95,27 +95,18 @@ def sync_channel(channel, mediacms_token, mediacms_url, yt_api_key):
         print(f"No new videos for {channel_name}.")
         return
 
-    # Build the list of YouTube URLs for the new videos.
-    video_urls = []
-    for video in new_videos:
-        video_id = video["id"]["videoId"]
-        title = video["snippet"]["title"]
-        # Heuristic: if "short" is in the title (case-insensitive), assume it's a short.
-        if "short" in title.lower():
-            url = f"https://www.youtube.com/shorts/{video_id}"
-        else:
-            url = f"https://www.youtube.com/watch?v={video_id}"
-        video_urls.append(url)
+    # Build the list of video IDs for the new videos.
+    video_ids = [video["id"]["videoId"] for video in new_videos]
 
-    if video_urls:
+    if video_ids:
         print(f"New videos detected for {channel_name}:")
-        for url in video_urls:
-            print("  ", url)
+        for vid in video_ids:
+            print("  ", vid)
         cmd = [
             "docker", "run", "--rm",
             "tuxxness/youtube2mediacms:latest",
-            "--video-urls"
-        ] + video_urls + [
+            "--video-ids"
+        ] + video_ids + [
             "--mediacms-url", mediacms_url,
             "--token", mediacms_token
         ]
@@ -138,3 +129,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+
