@@ -50,17 +50,17 @@ Create a `config.json` file with your settings:
 Use the official image and mount your config file:
 
 ```bash
-docker run --pull always -v /path/to/your/config.json:/app/config.json tuxxness/youtube2mediacms:latest --youtube-channel "Channel Name"
+docker run --pull always -v /path/to/your/config.json:/app/config.json tuxxness/youtube2mediacms:latest --youtube-channel "My Awesome Channel"
 ```
 
 For large uploads, use `--network host` to improve performance:
 ```bash
-docker run --network host --pull always -v /path/to/your/config.json:/app/config.json tuxxness/youtube2mediacms:latest --mode full --youtube-channel "Channel Name"
+docker run --network host --pull always -v /path/to/your/config.json:/app/config.json tuxxness/youtube2mediacms:latest --mode full --youtube-channel "My Awesome Channel"
 ```
 
 To keep downloaded files, mount a directory for the downloads:
 ```bash
-docker run --pull always -v /path/to/your/config.json:/app/config.json -v /path/to/downloads:/app/youtube_downloads tuxxness/youtube2mediacms:latest --keep-files --youtube-channel "Channel Name"
+docker run --pull always -v /path/to/your/config.json:/app/config.json -v /path/to/downloads:/app/youtube_downloads tuxxness/youtube2mediacms:latest --keep-files --youtube-channel "My Awesome Channel"
 ```
 
 ### ⏱️ Scheduled Tasks with Docker
@@ -69,7 +69,7 @@ For regular synchronization, you can use cron to run the Docker container at set
 
 ```
 # Example crontab entry to sync every hour
-0 * * * * docker run --rm --pull always -v /path/to/your/config.json:/app/config.json tuxxness/youtube2mediacms:latest --youtube-channel "Channel Name" >> /path/to/logs/sync.log 2>&1
+0 * * * * docker run --rm --pull always -v /path/to/your/config.json:/app/config.json tuxxness/youtube2mediacms:latest --youtube-channel "My Awesome Channel" >> /path/to/logs/sync.log 2>&1
 ```
 
 ## 📺 Usage Modes
@@ -80,21 +80,21 @@ For regular synchronization, you can use cron to run the Docker container at set
 This mode checks the latest video on MediaCMS and only syncs videos published after that date:
 
 ```bash
-docker run --pull always -v /path/to/your/config.json:/app/config.json tuxxness/youtube2mediacms:latest --youtube-channel "Channel Name"
+docker run --pull always -v /path/to/your/config.json:/app/config.json tuxxness/youtube2mediacms:latest --youtube-channel "My Awesome Channel"
 ```
 
 #### 🔄 Full channel sync
 This mode attempts to sync all videos from a YouTube channel:
 
 ```bash
-docker run --pull always -v /path/to/your/config.json:/app/config.json tuxxness/youtube2mediacms:latest --mode full --youtube-channel "Channel Name"
+docker run --pull always -v /path/to/your/config.json:/app/config.json tuxxness/youtube2mediacms:latest --mode full --youtube-channel "My Awesome Channel"
 ```
 
 #### 🏷️️ Update channel metadata only
 Only update the MediaCMS channel profile with YouTube channel details:
 
 ```bash
-docker run --pull always -v /path/to/your/config.json:/app/config.json tuxxness/youtube2mediacms:latest --update-channel "Channel Name"
+docker run --pull always -v /path/to/your/config.json:/app/config.json tuxxness/youtube2mediacms:latest --update-channel "My Awesome Channel"
 ```
 
 To update all configured channels:
@@ -191,7 +191,7 @@ cp config.json.example config.json
 
 Then run the script directly:
 ```bash
-python yt2mediacms.py --youtube-channel "Channel Name"
+python yt2mediacms.py --youtube-channel "My Awesome Channel"
 ```
 
 ## 🔍 <a id="finding-channel-id"></a>Finding Your YouTube Channel ID
