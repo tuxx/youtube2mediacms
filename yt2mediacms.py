@@ -30,23 +30,6 @@ logging.basicConfig(
 logger = logging.getLogger('youtube-to-mediacms')
 
 
-def get_dir_size(path):
-    """Get the size of a directory in bytes, then convert to human readable format."""
-    total_size = 0
-    for dirpath, dirnames, filenames in os.walk(path):
-        for f in filenames:
-            fp = os.path.join(dirpath, f)
-            if not os.path.islink(fp):
-                total_size += os.path.getsize(fp)
-    
-    for unit in ['B', 'KB', 'MB', 'GB', 'TB']:
-        if total_size < 1024.0:
-            return f"{total_size:.2f} {unit}"
-        total_size /= 1024.0
-    
-    return f"{total_size:.2f} PB"
-
-
 def get_channel_info_youtube_api(channel_id, api_key):
     logger.info(f"Fetching channel information via YouTube API: {channel_id}")
     
@@ -235,9 +218,6 @@ def download_youtube_videos(channel_url, output_dir, since_date=None):
     if return_code != 0:
         logger.error(f"yt-dlp process exited with code {return_code}")
     
-    dir_size = get_dir_size(output_dir)
-    logger.info(f"Current disk usage of {output_dir}: {dir_size}")
-    
     video_files = [f for f in os.listdir(output_dir) if f.endswith('.mp4')]
     video_files.sort()
     
@@ -351,11 +331,7 @@ def clean_up_files(video_file):
         if os.path.exists(thumbnail_file):
             os.remove(thumbnail_file)
             logger.info(f"Removed thumbnail file: {thumbnail_file}")
-            
-        output_dir = os.path.dirname(video_file)
-        dir_size = get_dir_size(output_dir)
-        logger.info(f"Current disk usage after cleanup: {dir_size}")
-        
+
     except Exception as e:
         logger.error(f"Error during file cleanup: {e}")
 
