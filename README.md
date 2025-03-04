@@ -20,8 +20,9 @@ The easiest way to use this tool is with the official Docker image.
 
 ### ⚙️ Configuration
 
-- 🔍 [Finding Your YouTube Channel ID](#Finding-your-YouTube-Channel-ID)
-- 🔑 [How to get a YouTube API Key](#youtube-data-api-v3-key)
+- [Finding Your YouTube Channel ID](#finding-channel-id) 🔍
+- [How to get a YouTube API Key](#youtube-api-key) 🔑
+
 
 Create a `config.json` file with your settings:
 
@@ -191,7 +192,7 @@ Then run the script directly:
 python yt2mediacms.py --youtube-channel "Channel Name"
 ```
 
-## 🔍 Finding Your YouTube Channel ID
+## 🔍 <a id="finding-channel-id"></a>Finding Your YouTube Channel ID
 
 YouTube channel URLs with an alias look like: `https://www.youtube.com/@ChannelName`
 
@@ -210,8 +211,7 @@ For example, the alias URL `https://www.youtube.com/@youtube` corresponds to the
 **Always use the full channel ID URL format (`https://www.youtube.com/channel/UCxxxxxxxxxxxxxxxxx`) in your config file.**
 
 
-
-## 🔑 Youtube Data API v3 key
+## 🔑 <a id="youtube-api-key"></a>Youtube Data API v3 key
 
 ### Step 1: Create a Google Cloud Project
 1. Go to the [Google Cloud Console](https://console.cloud.google.com/).
