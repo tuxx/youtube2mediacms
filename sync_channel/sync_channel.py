@@ -18,11 +18,11 @@ def extract_channel_id(yt_channel_str):
         return yt_channel_str.rstrip("/").split("/")[-1]
     return yt_channel_str
 
-def get_latest_video_info(yt_channel_id, yt_api_key):
+def get_new_videos(yt_channel_id, yt_api_key, published_after):
     """
-    Retrieves the latest video from the YouTube Data API for the given channel.
-    Returns a tuple: (video_id, published, title)
-    This method returns Shorts as well as regular videos.
+    Retrieves videos from the YouTube Data API for the given channel that were
+    published after the given ISO 8601 timestamp (published_after).
+    Returns a list of video dicts with keys from snippet and id.
     """
     api_url = "https://www.googleapis.com/youtube/v3/search"
     params = {
@@ -30,25 +30,21 @@ def get_latest_video_info(yt_channel_id, yt_api_key):
         "channelId": yt_channel_id,
         "part": "snippet,id",
         "order": "date",
-        "maxResults": 1
+        "maxResults": 50,
+        "publishedAfter": published_after
     }
+    videos = []
     try:
         response = requests.get(api_url, params=params)
         response.raise_for_status()
         data = response.json()
         items = data.get("items", [])
-        if items:
-            latest_item = items[0]
-            if latest_item["id"]["kind"] == "youtube#video":
-                video_id = latest_item["id"]["videoId"]
-                published = latest_item["snippet"]["publishedAt"]
-                title = latest_item["snippet"]["title"]
-                return video_id, published, title
-        else:
-            print(f"No items found for channel {yt_channel_id}")
+        for item in items:
+            if item["id"]["kind"] == "youtube#video":
+                videos.append(item)
     except Exception as e:
         print(f"Error retrieving video info from YouTube API for channel {yt_channel_id}: {e}")
-    return None, None, None
+    return videos
 
 def get_latest_mediacms_video_info(mediacms_url, token, mc_channel_id):
     """
@@ -75,63 +71,68 @@ def get_latest_mediacms_video_info(mediacms_url, token, mc_channel_id):
         print(f"Error retrieving Mediacms video for channel {mc_channel_id}: {e}")
     return None, None
 
-def format_since_date(date_str):
-    """
-    Convert a date string (e.g. "2025-03-02T17:47:12.768543Z") to the YYYYMMDD format.
-    If the conversion fails, return a default of "19700101".
-    """
-    try:
-        dt = date_parser.parse(date_str)
-        return dt.strftime("%Y%m%d")
-    except Exception as e:
-        print(f"Error parsing date '{date_str}': {e}")
-        return "19700101"
-
 def sync_channel(channel, mediacms_token, mediacms_url, yt_api_key):
-    # Use the full URL from config for the docker command.
+    # Use the full URL from config for logging purposes.
     full_yt_channel_url = channel["yt_id"]
     # Extract the channel id for API calls.
     extracted_yt_channel_id = extract_channel_id(full_yt_channel_url)
     mc_channel_id = channel["mediacms_id"]
     channel_name = channel.get("name", full_yt_channel_url)
-    
-    print(f"Checking channel {channel_name}...")
-    
-    yt_video_id, yt_published, yt_title = get_latest_video_info(extracted_yt_channel_id, yt_api_key)
-    if not yt_title:
-        print(f"Could not retrieve YouTube info for channel {extracted_yt_channel_id}")
-        return
 
+    print(f"Checking channel {channel_name}...")
+
+    # Retrieve the last video info from Mediacms.
     mediacms_title, mediacms_published = get_latest_mediacms_video_info(mediacms_url, mediacms_token, mc_channel_id)
     
-    # Compare the latest video titles. If they differ (or if Mediacms has no video), assume a new video is available.
-    if mediacms_title != yt_title:
-        print(f"New video detected for {channel_name}.")
-        # Format the Mediacms add_date as YYYYMMDD; default to "19700101" if no date is available.
-        since_arg = format_since_date(mediacms_published) if mediacms_published else "19700101"
+    # Use mediacms_published as the threshold (if available) or default to a very early date.
+    if mediacms_published:
+        published_after = mediacms_published  # expecting an ISO 8601 string
+    else:
+        published_after = "1970-01-01T00:00:00Z"
+
+    new_videos = get_new_videos(extracted_yt_channel_id, yt_api_key, published_after)
+    if not new_videos:
+        print(f"No new videos for {channel_name}.")
+        return
+
+    # Build the list of YouTube URLs for the new videos.
+    video_urls = []
+    for video in new_videos:
+        video_id = video["id"]["videoId"]
+        title = video["snippet"]["title"]
+        # Heuristic: if "short" is in the title (case-insensitive), assume it's a short.
+        if "short" in title.lower():
+            url = f"https://www.youtube.com/shorts/{video_id}"
+        else:
+            url = f"https://www.youtube.com/watch?v={video_id}"
+        video_urls.append(url)
+
+    if video_urls:
+        print(f"New videos detected for {channel_name}:")
+        for url in video_urls:
+            print("  ", url)
         cmd = [
             "docker", "run", "--rm",
             "tuxxness/youtube2mediacms:latest",
-            "--channel", full_yt_channel_url,  # full URL passed to the container
+            "--video-urls"
+        ] + video_urls + [
             "--mediacms-url", mediacms_url,
-            "--token", mediacms_token,
-            "--yt-api-key", yt_api_key,
-            "--since", since_arg
+            "--token", mediacms_token
         ]
         print("Running command:", " ".join(cmd))
         subprocess.run(cmd)
     else:
-        print(f"No new video for {channel_name}. Latest video title matches: {yt_title}")
+        print(f"No new videos found for {channel_name} after filtering.")
 
 def main():
     config = load_config()
-    
+
     mediacms_config = config.get("mediacms", {})
     mediacms_token = mediacms_config.get("token")
     mediacms_url = mediacms_config.get("url")
     yt_api_key = config.get("yt_api_key")
     channels = config.get("channels", [])
-    
+
     for channel in channels:
         sync_channel(channel, mediacms_token, mediacms_url, yt_api_key)
 
