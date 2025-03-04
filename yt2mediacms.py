@@ -183,6 +183,7 @@ def download_youtube_videos(channel_url, output_dir, since_date=None):
         '--ignore-errors',
         '--format', 'bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best',
         '--merge-output-format', 'mp4',
+        '--postprocessor-args', '-c copy',
         '--write-info-json',
         '--write-thumbnail',
         '--restrict-filenames',
