@@ -2,6 +2,11 @@
 
 All notable changes to this project will be documented in this file.
 
+## [v1.0.1] - 2025-03-06
+
+### Fixed
+- Fixed a bug where the script incorrectly considered videos fully encoded when only lower resolutions were ready while higher resolutions were still processing.
+
 ## [v1.0.0] - 2025-03-06
 
 ### Added

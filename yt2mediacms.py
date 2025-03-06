@@ -533,9 +533,11 @@ def check_encoding_status(mediacms_url, token, username):
 def check_video_encoding_status(mediacms_url, token, friendly_token):
     """
     Check the encoding status of a specific video by its friendly_token.
+    Now checks all individual encoding profiles to determine if the video is fully encoded.
     
     Returns:
-    - str: The encoding status ("pending", "running", "fail", "success") or None if not found
+    - str: "success" if all encodings are complete, "running" if any are still running,
+           "pending" if any are pending, "fail" if any failed, or None if not found
     """
     api_url = f"{mediacms_url.rstrip('/')}/api/v1/media/{friendly_token}"
     headers = {
@@ -550,7 +552,50 @@ def check_video_encoding_status(mediacms_url, token, friendly_token):
             return None
             
         data = response.json()
-        return data.get("encoding_status")
+        
+        # Check the top-level encoding_status
+        overall_status = data.get("encoding_status")
+        
+        # If the top-level status is "running" or "pending", return that immediately
+        if overall_status in ["running", "pending"]:
+            return overall_status
+            
+        # If the top-level status is "success", check all individual encoding profiles
+        if overall_status == "success":
+            # Check the encodings_info dictionary
+            encodings_info = data.get("encodings_info", {})
+            
+            # Track status of all non-empty encoding profiles
+            valid_encodings_status = []
+            
+            # Check each resolution
+            for resolution in ["240", "360", "480", "720", "1080", "1440", "2160"]:
+                resolution_data = encodings_info.get(resolution, {})
+                # Skip empty resolution data (formats not configured for encoding)
+                if not resolution_data:
+                    continue
+                
+                # Check h264 format (most common)
+                h264_data = resolution_data.get("h264", {})
+                if h264_data:
+                    status = h264_data.get("status")
+                    if status:
+                        valid_encodings_status.append(status)
+            
+            # If we have at least one valid encoding status
+            if valid_encodings_status:
+                # If any are still running or pending, the overall status should be "running"
+                if "running" in valid_encodings_status or "pending" in valid_encodings_status:
+                    return "running"
+                # If any failed, the overall status should reflect that
+                elif "fail" in valid_encodings_status:
+                    return "fail"
+                # Otherwise, if all are success, return success
+                elif all(status == "success" for status in valid_encodings_status):
+                    return "success"
+                
+        # Default to whatever the API reported
+        return overall_status
     except Exception as e:
         logger.error(f"Error checking video encoding status: {e}")
         return None
