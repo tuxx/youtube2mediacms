@@ -1,4 +1,4 @@
-name: Build and Publish Docker Image
+name: Build, Publish and Release
 
 on:
   push:
@@ -6,24 +6,68 @@ on:
       - '*'
 
 jobs:
-  build:
+  build-and-release:
     runs-on: ubuntu-latest
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
+
+      - name: Extract changelog for version
+        id: extract_changelog
+        run: |
+          # Get current tag without 'v' prefix if present
+          CURRENT_TAG=${GITHUB_REF#refs/tags/}
+          VERSION=${CURRENT_TAG#v}
+          
+          echo "Current version: $VERSION"
+          
+          # Check if CHANGELOG.md exists
+          if [ ! -f "CHANGELOG.md" ]; then
+            echo "Error: CHANGELOG.md file not found"
+            exit 1
+          fi
+          
+          # Extract the section for the current version
+          # This regex matches content between "## [vX.Y.Z]" and the next heading or EOF
+          SECTION=$(sed -n "/## \[v*${VERSION}\]/,/## \[/p" CHANGELOG.md | sed '$d')
+          
+          # If nothing was extracted, check for version without v prefix
+          if [ -z "$SECTION" ]; then
+            SECTION=$(sed -n "/## \[${VERSION}\]/,/## \[/p" CHANGELOG.md | sed '$d')
+          fi
+          
+          # If still nothing, try with actual tag name (in case the tag is used directly)
+          if [ -z "$SECTION" ]; then
+            SECTION=$(sed -n "/## \[${CURRENT_TAG}\]/,/## \[/p" CHANGELOG.md | sed '$d')
+          fi
+          
+          if [ -z "$SECTION" ]; then
+            echo "Warning: No changelog entry found for version $VERSION"
+            SECTION="No changelog entry found for version $VERSION"
+          fi
+          
+          # Store changelog section for GitHub release
+          echo "RELEASE_NOTES<<EOF" >> $GITHUB_ENV
+          echo "$SECTION" >> $GITHUB_ENV
+          echo "EOF" >> $GITHUB_ENV
+          
+          # Also create a file for DockerHub
+          echo "$SECTION" > version_changelog.md
+          
+          echo "Version changelog extracted successfully"
 
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v1
+        uses: docker/setup-buildx-action@v2
 
       - name: Log in to Docker Hub
-        uses: docker/login-action@v1
+        uses: docker/login-action@v2
         with:
           username: ${{ secrets.DOCKER_USERNAME }}
           password: ${{ secrets.DOCKER_PASSWORD }}
 
       - name: Build and push Docker image
-        uses: docker/build-push-action@v2
+        uses: docker/build-push-action@v4
         with:
           context: .
           file: Dockerfile
@@ -31,3 +75,52 @@ jobs:
           tags: |
             tuxxness/youtube2mediacms:${{ github.ref_name }}
             tuxxness/youtube2mediacms:latest
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v1
+        with:
+          body: ${{ env.RELEASE_NOTES }}
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Update DockerHub Description
+        uses: peter-evans/dockerhub-description@v3
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
+          repository: tuxxness/youtube2mediacms
+          short-description: "YouTube to MediaCMS Sync Tool"
+          readme-filepath: ./README.md
+
+      - name: Update DockerHub Description with Changelog
+        env:
+          DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
+          DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
+          GITHUB_REF_NAME: ${{ github.ref_name }}
+        run: |
+          # Get current tag without 'v' prefix if present
+          CURRENT_TAG=${GITHUB_REF_NAME}
+          VERSION=${CURRENT_TAG#v}
+          
+          # Get DockerHub authentication token
+          TOKEN=$(curl -s -H "Content-Type: application/json" -X POST -d '{"username": "'$DOCKER_USERNAME'", "password": "'$DOCKER_PASSWORD'"}' https://hub.docker.com/v2/users/login/ | jq -r .token)
+          
+          if [ -z "$TOKEN" ] || [ "$TOKEN" == "null" ]; then
+            echo "Failed to authenticate with DockerHub API"
+            exit 1
+          fi
+          
+          # Add changelog section to the top of the README.md
+          README_CONTENT=$(cat README.md)
+          CHANGELOG_SECTION="## 🆕 Latest Changes (${CURRENT_TAG})\n\n$(cat version_changelog.md)\n\n"
+          
+          # Find the position of the first heading and insert the changelog after it
+          NEW_README=$(echo "$README_CONTENT" | sed -E "0,/^# .*$/s/^# .*$/&\n\n${CHANGELOG_SECTION}/")
+          
+          # Create temporary file with updated README
+          echo "$NEW_README" > updated_readme.md
+          
+          # Update DockerHub description using the API
+          curl -s -H "Authorization: JWT ${TOKEN}" -X PATCH -H "Content-Type: application/json" -d '{"full_description": "'"$(cat updated_readme.md | sed 's/"/\\"/g' | sed ':a;N;$!ba;s/\n/\\n/g')"'"}' https://hub.docker.com/v2/repositories/tuxxness/youtube2mediacms/
