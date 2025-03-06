@@ -117,7 +117,9 @@ jobs:
           CHANGELOG_SECTION="## 🆕 Latest Changes (${CURRENT_TAG})\n\n$(cat version_changelog.md)\n\n"
           
           # Find the position of the first heading and insert the changelog after it
-          NEW_README=$(echo "$README_CONTENT" | sed -E "0,/^# .*$/s/^# .*$/&\n\n${CHANGELOG_SECTION}/")
+          ESCAPED_CHANGELOG=$(cat version_changelog.md | sed 's/\\/\\\\/g' | sed 's/"/\\"/g' | sed 's/$/\\n/g' | tr -d '\n')
+          CHANGELOG_SECTION="## 🆕 Latest Changes (${CURRENT_TAG})\n\n${ESCAPED_CHANGELOG}\n"
+          NEW_README=$(awk -v changelog="$CHANGELOG_SECTION" 'BEGIN {first_heading=0} /^# / {if (!first_heading) {print $0; print ""; print changelog; first_heading=1; next}} {print}' README.md)
           
           # Create temporary file with updated README
           echo "$NEW_README" > updated_readme.md
