@@ -142,7 +142,7 @@ def initialize_tui():
             def start(self):
                 """Start the TUI display"""
                 self.layout = self.generate_layout()
-                self.live = Live(self.layout, refresh_per_second=2, console=self.console)
+                self.live = Live(self.layout, refresh_per_second=2, console=self.console, screen=True)
                 self.live.start()
                 self.enabled = True
                 return self
@@ -150,7 +150,10 @@ def initialize_tui():
             def stop(self):
                 """Stop the TUI display"""
                 if self.live:
-                    self.live.stop()
+                    try:
+                        self.live.stop()
+                    except Exception as e:
+                        print(f"Error stopping TUI: {e}")
                     self.enabled = False
             
             def log(self, message, level="INFO"):
@@ -1406,7 +1409,7 @@ class UploadManager:
                         tui_manager.update_upload_thread(
                             thread_name,
                             "waiting",
-                            video_id=None,
+                            f"MC:{last_token}",
                             encoding_status=encoding_status
                         )
                     
@@ -1517,7 +1520,7 @@ class UploadManager:
                                     tui_manager.update_upload_thread(
                                         thread_name,
                                         "completed",
-                                        None,  # We don't have the video ID here
+                                        f"MC:{token}",
                                         encoding_status=status
                                     )
                                 
@@ -1530,7 +1533,7 @@ class UploadManager:
                                     tui_manager.update_upload_thread(
                                         thread_name,
                                         "waiting",
-                                        None,  # We don't have the video ID here
+                                        f"MC:{token}",
                                         encoding_status=status
                                     )
                         except Exception as e:
