@@ -15,5 +15,10 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy the Python script and any other necessary files
 COPY yt2mediacms.py .
 
+# Set environment variables for better TUI support
+ENV PYTHONIOENCODING=utf-8
+ENV TERM=xterm-256color
+ENV COLORTERM=truecolor
+
 ENTRYPOINT ["python", "yt2mediacms.py"]
 

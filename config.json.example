@@ -6,13 +6,11 @@
       {
         "name": "Channel One",
         "url": "https://www.youtube.com/channel/UCxxxxxxxxxxxxxxxxx",
-        "mediacms_user": "Username",
         "mediacms_token": "Usernames_api_token"
       },
       {
         "name": "Channel Two",
         "url": "https://www.youtube.com/channel/UCyyyyyyyyyyyyyyyyy",
-        "mediacms_user": "OtherUser",
         "mediacms_token": "OtherUsers_api_token"
       }
     ]
