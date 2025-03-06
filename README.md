@@ -3,9 +3,26 @@
 This script allows you to sync your YouTube videos to a MediaCMS instance. It offers robust channel synchronization, metadata updates, and support for individual video uploads.
 
 - [Official Docker Image](https://hub.docker.com/r/tuxxness/youtube2mediacms)
-
 ## ⚠️ Important Notice
 This script is intended only for syncing videos you own (e.g., your personal YouTube channel content). Do not use it to download or upload copyrighted content that you do not have permission to redistribute. Unauthorized copying of copyrighted material may violate YouTube's Terms of Service and copyright laws.
+
+## 🆕 Latest Changes (v1.0.0)
+
+### Added
+- Parallel downloading and uploading with configurable workers
+- Smart encoding status tracking using MediaCMS API
+- Interactive TUI mode with live status updates
+- Wait-for-encoding option to prevent server overload
+
+### Changed
+- Removed dependency on mediacms_user in config.json
+- Improved metadata race condition handling with retries
+- Enhanced command-line arguments for better control
+
+### Fixed
+- Race condition in metadata file handling
+- Better error handling during upload process
+
 
 ## 🔄 Features
 - ✅ Multiple sync modes (full channel, new videos only, selected videos)
@@ -15,6 +32,9 @@ This script is intended only for syncing videos you own (e.g., your personal You
 - ✅ Preserves video metadata (title, description, tags, upload date)
 - ✅ Uploads thumbnails alongside videos
 - ✅ Progress reporting and performance metrics
+- ✅ Parallel downloading and uploading with configurable workers
+- ✅ MediaCMS encoding status tracking with wait options
+- ✅ Interactive TUI mode for real-time progress monitoring
 
 ## 🐳 Docker Usage (Recommended)
 
@@ -37,7 +57,6 @@ Create a `config.json` file with your settings:
       {
         "name": "My Awesome Channel",
         "url": "https://www.youtube.com/channel/UCxxxxxxxxxxxxxxxxx",
-        "mediacms_user": "MediaCMS_Username",
         "mediacms_token": "MediaCMS_API_Token"
       }
     ]
@@ -53,6 +72,11 @@ Use the official image and mount your config file:
 docker run --pull always -v /path/to/your/config.json:/app/config.json tuxxness/youtube2mediacms:latest --youtube-channel "My Awesome Channel"
 ```
 
+For better performance with parallel processing:
+```bash
+docker run -it -e CONTAINER=docker --pull always -v /path/to/your/config.json:/app/config.json tuxxness/youtube2mediacms:latest --mode full --youtube-channel "My Awesome Channel" --download-workers 2 --upload-workers 2 --tui
+```
+
 For large uploads, use `--network host` to improve performance:
 ```bash
 docker run --network host --pull always -v /path/to/your/config.json:/app/config.json tuxxness/youtube2mediacms:latest --mode full --youtube-channel "My Awesome Channel"
@@ -63,7 +87,52 @@ To keep downloaded files, mount a directory for the downloads:
 docker run --pull always -v /path/to/your/config.json:/app/config.json -v /path/to/downloads:/app/youtube_downloads tuxxness/youtube2mediacms:latest --keep-files --youtube-channel "My Awesome Channel"
 ```
 
-### ⏱️ Scheduled Tasks with Docker
+#### 🖥️ Text-based User Interface (TUI)
+
+The script includes a TUI mode that provides real-time status updates for both download and upload processes. To use it:
+
+```bash
+docker run -it -e CONTAINER=docker --pull always -v /path/to/your/config.json:/app/config.json tuxxness/youtube2mediacms:latest --tui --youtube-channel "My Awesome Channel"
+```
+
+The TUI provides:
+- Download and upload worker status
+- Encoding status tracking
+- Total processing statistics
+- Recent log messages
+
+#### ⚡ Parallel Processing
+
+To speed up the synchronization process, you can configure multiple download and upload workers:
+
+```bash
+docker run --pull always -v /path/to/your/config.json:/app/config.json tuxxness/youtube2mediacms:latest --download-workers 3 --upload-workers 2 --youtube-channel "My Awesome Channel"
+
+# With TUI enabled
+docker run -it -e CONTAINER=docker --pull always -v /path/to/your/config.json:/app/config.json tuxxness/youtube2mediacms:latest --download-workers 3 --upload-workers 2 --tui --youtube-channel "My Awesome Channel"
+```
+
+For optimal performance:
+- Set `--download-workers` based on your internet connection speed
+- Set `--upload-workers` based on your MediaCMS instance's capacity
+- Use `--no-wait-for-encoding` to upload videos without waiting for previous uploads to complete encoding
+
+#### 🔄 Encoding Management
+
+By default, the script waits for each video to finish encoding before uploading the next one to prevent overloading your MediaCMS server. You can control this behavior:
+
+```bash
+# Wait for encoding (default)
+docker run --pull always -v /path/to/your/config.json:/app/config.json tuxxness/youtube2mediacms:latest --wait-for-encoding --youtube-channel "My Awesome Channel"
+
+# Don't wait for encoding (faster but may overload your server)
+docker run --pull always -v /path/to/your/config.json:/app/config.json tuxxness/youtube2mediacms:latest --no-wait-for-encoding --youtube-channel "My Awesome Channel"
+
+# With TUI mode (for monitoring encoding status)
+docker run -it -e CONTAINER=docker --pull always -v /path/to/your/config.json:/app/config.json tuxxness/youtube2mediacms:latest --wait-for-encoding --tui --youtube-channel "My Awesome Channel"
+```
+
+#### ⏱️ Scheduled Tasks with Docker
 
 For regular synchronization, you can use cron to run the Docker container at set intervals:
 
@@ -158,12 +227,17 @@ Don't forget to add the `--keep-files` flag to your command to prevent automatic
 | `--update-channel` | Update channel metadata. Optional channel name for specific channel | None | Yes, for metadata mode |
 | `--config` | Path to config file | "config.json" | No |
 | `--mediacms-url` | Override MediaCMS URL from config | From config | No |
-| `--delay` | Seconds to wait between uploads | 5 | No |
+| `--delay` | Seconds to wait between uploads or encoding checks | 5 | No |
 | `--keep-files` | Don't delete downloaded files after upload | False | No |
 | `--mediacms-username` | Target MediaCMS username for video-ids mode | None | Yes, for video ID mode |
 | `--youtube-channel` | Only operate on channel with this name | All channels | No |
 | `--verbose`, `-v` | Enable verbose logging | False | No |
 | `--log-file` | Write logs to the specified file | None | No |
+| `--download-workers` | Number of parallel download worker threads | 1 | No |
+| `--upload-workers` | Number of parallel upload worker threads | 1 | No |
+| `--wait-for-encoding` | Wait for each video to finish encoding before uploading the next one | True | No |
+| `--no-wait-for-encoding` | Don't wait for videos to finish encoding before uploading more | - | No |
+| `--tui` | Enable text-based user interface with live status updates | False | No |
 
 
 ## 💻 Manual Installation
@@ -174,6 +248,7 @@ If you prefer to run the script directly:
 - Python 3.x
 - [yt-dlp](https://github.com/yt-dlp/yt-dlp) installed on your system
 - YouTube Data API v3 key ([Instructions](#youtube-data-api-v3-key))
+- (Optional) rich library for TUI mode
 
 ### 🔧 Setup
 ```bash
@@ -193,6 +268,13 @@ Then run the script directly:
 ```bash
 python yt2mediacms.py --youtube-channel "My Awesome Channel"
 ```
+
+To enable parallel processing and the TUI:
+```bash
+python yt2mediacms.py --youtube-channel "My Awesome Channel" --download-workers 2 --upload-workers 2 --tui
+```
+
+> **Note**: When running in Docker, you must add `-it -e CONTAINER=docker` parameters for the TUI to display correctly.
 
 ## 🔍 <a id="finding-channel-id"></a>Finding Your YouTube Channel ID
 
