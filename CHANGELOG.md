@@ -2,6 +2,14 @@
 
 All notable changes to this project will be documented in this file.
 
+## [v1.0.2] - 2025-03-06
+
+### Changed
+- We now require a youtube api key at all times.
+
+### Fixed
+- Fixed a bug where we did not correctly get the first video from the channel when syncing the full channel.
+
 ## [v1.0.1] - 2025-03-06
 
 ### Fixed

@@ -622,10 +622,21 @@ def extract_channel_id(yt_channel_url):
     return yt_channel_url.rstrip("/").split("/")[-1]
 
 
-def fetch_videos_with_api(channel_id, api_key, published_after=None, max_results=50):
+def fetch_videos_with_api(channel_id, api_key, published_after=None, max_results=50, order="date", fetch_all=False):
     """
     Get videos using YouTube API including both regular videos and shorts.
     Returns a list of dictionaries with video details.
+    
+    Parameters:
+    - channel_id: The YouTube channel ID
+    - api_key: YouTube API key
+    - published_after: Only fetch videos published after this date (ISO 8601 format)
+    - max_results: Maximum number of results per request
+    - order: Order of results ("date", "title", "viewCount", "rating")
+    - fetch_all: If True, fetches all videos by making multiple requests
+    
+    Returns:
+    - List of dictionaries with video details
     """
     logger.info(f"Fetching videos via YouTube API for channel: {channel_id}")
     
@@ -636,7 +647,7 @@ def fetch_videos_with_api(channel_id, api_key, published_after=None, max_results
         search_params = {
             "part": "snippet",
             "channelId": channel_id,
-            "order": "date",
+            "order": order,
             "maxResults": max_results,
             "type": "video"
         }
@@ -646,27 +657,53 @@ def fetch_videos_with_api(channel_id, api_key, published_after=None, max_results
             search_params["publishedAfter"] = published_after
             logger.info(f"Only fetching videos published after: {published_after}")
         
-        request = youtube.search().list(**search_params)
-        response = request.execute()
+        all_entries = []
+        next_page_token = None
+        total_fetched = 0
         
-        # Log response info for debugging
-        logger.debug(f"API response has {len(response.get('items', []))} items")
+        # Loop to fetch all pages if fetch_all is True
+        while True:
+            if next_page_token:
+                search_params["pageToken"] = next_page_token
+            
+            logger.info(f"Making YouTube API request (page token: {next_page_token})")
+            request = youtube.search().list(**search_params)
+            response = request.execute()
+            
+            # Log response info for debugging
+            items = response.get("items", [])
+            logger.info(f"API response has {len(items)} items")
+            
+            # Process videos from this page
+            for item in items:
+                snippet = item.get("snippet", {})
+                all_entries.append({
+                    "title": snippet.get("title", ""),
+                    "video_id": item.get("id", {}).get("videoId", ""),
+                    "published": snippet.get("publishedAt", "")
+                })
+            
+            total_fetched += len(items)
+            
+            # Check if there are more pages
+            next_page_token = response.get("nextPageToken")
+            
+            # Break if no more pages or we're not fetching all
+            if not next_page_token or not fetch_all:
+                break
+            
+            # Avoid hitting API limits
+            time.sleep(1)
         
-        entries = []
-        for item in response.get("items", []):
-            snippet = item.get("snippet", {})
-            entries.append({
-                "title": snippet.get("title", ""),
-                "video_id": item.get("id", {}).get("videoId", ""),
-                "published": snippet.get("publishedAt", "")
-            })
+        logger.info(f"Found {total_fetched} videos (including shorts) using YouTube API")
         
-        logger.info(f"Found {len(entries)} videos (including shorts) using YouTube API")
-        return entries
+        # Sort by publish date (oldest first)
+        all_entries.sort(key=lambda x: x.get("published", ""))
+        
+        return all_entries
     except Exception as e:
         logger.error(f"Error fetching videos from YouTube API: {e}")
         return []
-
 
 def download_youtube_videos(urls, output_dir=OUTPUT_DIR, since_date=None):
     if not os.path.exists(output_dir):
@@ -1110,17 +1147,26 @@ def update_channel_metadata(channel, mediacms_url, youtube_api_key):
 
 
 def sync_channel_new(channel, mediacms_url, delay, keep_files, youtube_api_key):
+    """
+    Syncs only new videos by comparing with what's already in MediaCMS.
+    """
     yt_channel_url = channel.get("url")
     token = channel.get("mediacms_token")
     channel_id = extract_channel_id(yt_channel_url)
     channel_name = channel.get("name", "Unknown Channel")
+    
     if not yt_channel_url or not token:
         logger.error("Channel configuration missing 'url' or 'mediacms_token'.")
+        return
+    
+    # API key is now required
+    if not youtube_api_key:
+        logger.error("YouTube API key is required for channel sync.")
         return
 
     logger.info(f"Syncing new videos for channel {channel_name} (ID: {channel_id})")
 
-    # Get the latest video info from MediaCMS (just like in the original sync_channel.py)
+    # Get the latest video info from MediaCMS
     last_title, last_date = get_latest_mediacms_video_info(mediacms_url, token)
     if last_title is not None:
         logger.info(f"Latest MediaCMS video title: {last_title}")
@@ -1129,7 +1175,7 @@ def sync_channel_new(channel, mediacms_url, delay, keep_files, youtube_api_key):
     else:
         logger.info("No previous MediaCMS video found; will fetch recent videos only.")
 
-    # Use last_date as the threshold for the YouTube API (just like in the original sync_channel.py)
+    # Use last_date as the threshold for the YouTube API
     # If no date is available, use a recent date to avoid downloading the entire channel history
     published_after = last_date if last_date else "2020-01-01T00:00:00Z"
     
@@ -1166,18 +1212,55 @@ def sync_channel_new(channel, mediacms_url, delay, keep_files, youtube_api_key):
         time.sleep(delay)
 
 
-def sync_channel_full(channel, mediacms_url, delay, keep_files):
+def sync_channel_full(channel, mediacms_url, delay, keep_files, youtube_api_key):
+    """
+    Performs a full channel sync using the YouTube API.
+    Fetches ALL videos from the channel, starting with the oldest.
+    """
     yt_channel_url = channel.get("url")
     token = channel.get("mediacms_token")
     channel_name = channel.get("name", "Unknown Channel")
+    
     if not yt_channel_url or not token:
         logger.error("Channel configuration missing 'url' or 'mediacms_token'.")
+        return
+    
+    # API key is now required
+    if not youtube_api_key:
+        logger.error("YouTube API key is required for channel sync.")
         return
 
     logger.info(f"Performing full sync for channel {channel_name} ({yt_channel_url})")
     
-    # For full sync, we use the channel URL and --playlist-reverse to download the oldest video first.
-    video_files = download_youtube_videos(yt_channel_url, OUTPUT_DIR)
+    # Extract channel ID
+    channel_id = extract_channel_id(yt_channel_url)
+    
+    # Fetch all videos, sorted by date (oldest first)
+    videos = fetch_videos_with_api(
+        channel_id, 
+        youtube_api_key,
+        order="date",
+        fetch_all=True  # Get all videos, not just first 50
+    )
+    
+    if not videos:
+        logger.warning(f"No videos found for channel {channel_name} via API.")
+        return
+        
+    logger.info(f"Found {len(videos)} videos via API.")
+    
+    # Sort by published date (oldest first)
+    videos.sort(key=lambda x: x.get("published", ""))
+    
+    # Extract video IDs
+    video_ids = [video["video_id"] for video in videos]
+    
+    # Create video URLs for yt-dlp
+    video_urls = [f"https://www.youtube.com/watch?v={vid}" for vid in video_ids]
+    
+    # Download videos (in the order provided - oldest first)
+    video_files = download_youtube_videos(video_urls, OUTPUT_DIR)
+    
     if not video_files:
         logger.warning("No videos downloaded in full mode.")
         return
@@ -1187,7 +1270,6 @@ def sync_channel_full(channel, mediacms_url, delay, keep_files):
         metadata = get_video_metadata(json_file) if os.path.exists(json_file) else {}
         success, _ = upload_to_mediacms(video_file, mediacms_url, token, metadata, cleanup=(not keep_files))
         time.sleep(delay)
-
 
 class DownloadManager:
     """
@@ -1592,7 +1674,7 @@ class UploadManager:
         return monitor
 
 
-def sync_channel_improved(channel, mediacms_url, delay, keep_files, youtube_api_key=None, 
+def sync_channel_improved(channel, mediacms_url, delay, keep_files, youtube_api_key, 
                           download_workers=1, upload_workers=1, wait_for_encoding=True):
     """
     Enhanced channel sync with separate download and upload threads,
@@ -1604,6 +1686,11 @@ def sync_channel_improved(channel, mediacms_url, delay, keep_files, youtube_api_
     
     if not yt_channel_url or not token:
         logger.error("Channel configuration missing 'url' or 'mediacms_token'.")
+        return
+    
+    # API key is now required
+    if not youtube_api_key:
+        logger.error("YouTube API key is required for channel sync.")
         return
 
     logger.info(f"Performing improved sync for channel {channel_name} ({yt_channel_url})")
@@ -1642,41 +1729,23 @@ def sync_channel_improved(channel, mediacms_url, delay, keep_files, youtube_api_
     # Start the download workers
     download_manager.start()
     
-    if youtube_api_key:
-        # Use YouTube API to get video IDs
-        channel_id = extract_channel_id(yt_channel_url)
-        videos = fetch_videos_with_api(channel_id, youtube_api_key)
-        video_ids = [v["video_id"] for v in videos]
-        
-        # Sort video IDs chronologically (oldest first)
-        video_ids.reverse()
-        
-        logger.info(f"Found {len(video_ids)} videos to process via API")
-        
-        # Queue all videos for download
-        download_manager.add_videos(video_ids)
-    else:
-        # Without API, use a special single-thread downloader that monitors yt-dlp output
-        logger.info("YouTube API key not available. Using stream output parser for downloads.")
-        logger.warning("This mode does not support multiple download workers. Using 1 worker only.")
-        
-        # Create a thread that runs the download_youtube_videos_with_callback function
-        def streaming_download():
-            logger.info("Starting streaming download thread")
-            downloaded_files = download_youtube_videos_with_callback(yt_channel_url, OUTPUT_DIR)
-            
-            # Process each downloaded file
-            for video_file in downloaded_files:
-                json_file = video_file.rsplit(".", 1)[0] + ".info.json"
-                metadata = get_video_metadata(json_file) if os.path.exists(json_file) else {}
-                upload_manager.add_video(video_file, metadata)
-                
-            logger.info("Streaming download thread completed")
-            
-        download_thread = threading.Thread(target=streaming_download)
-        download_thread.start()
-        download_thread.join()
-        
+    # Use YouTube API to get ALL video IDs (not just the most recent 50)
+    channel_id = extract_channel_id(yt_channel_url)
+    videos = fetch_videos_with_api(
+        channel_id, 
+        youtube_api_key, 
+        fetch_all=True  # Get ALL videos, not just the most recent 50
+    )
+    
+    # Sort videos by publish date (oldest first)
+    videos.sort(key=lambda x: x.get("published", ""))
+    video_ids = [v["video_id"] for v in videos]
+    
+    logger.info(f"Found {len(video_ids)} videos to process via API")
+    
+    # Queue all videos for download
+    download_manager.add_videos(video_ids)
+    
     # Signal that all videos have been added to the queue
     download_manager.mark_completed()
     
@@ -1689,7 +1758,6 @@ def sync_channel_improved(channel, mediacms_url, delay, keep_files, youtube_api_
     logger.info("All uploads completed")
     
     logger.info(f"Channel sync completed for {channel_name}")
-
 
 def sync_video_ids(video_ids, mediacms_url, token, delay, keep_files):
     logger.info(f"Syncing video IDs: {video_ids}")
@@ -1741,7 +1809,7 @@ def main():
     parser.add_argument("--verbose", "-v", action="store_true", help="Enable verbose output")
     parser.add_argument("--log-file", help="Log to specified file in addition to console")
     
-    # Add new arguments for improved thread management
+    # Thread management arguments
     parser.add_argument("--download-workers", type=int, default=1,
                        help="Number of parallel download worker threads")
     parser.add_argument("--upload-workers", type=int, default=1,
@@ -1787,6 +1855,12 @@ def main():
 
         youtube_config = config.get("youtube", {})
         channels = youtube_config.get("channels", [])
+        
+        # Get YouTube API key (now required)
+        youtube_api_key = youtube_config.get("api_key")
+        if not youtube_api_key:
+            logger.error("YouTube API key is required. Please add it to your config file.")
+            sys.exit(1)
     
         # If --youtube-channel is provided (and we're not in update-channel mode with argument), filter channels.
         if args.youtube_channel and not args.update_channel:
@@ -1859,45 +1933,48 @@ def main():
             if not channels:
                 logger.error("No channels defined in configuration for update-channel mode.")
                 sys.exit(1)
-            youtube_api_key = youtube_config.get("api_key")
-            if not youtube_api_key:
-                logger.error("YouTube API key is required for updating channel metadata (set in config['youtube']['api_key']).")
-                sys.exit(1)
+                
             for channel in channels:
                 update_channel_metadata(channel, mediacms_url, youtube_api_key)
             sys.exit(0)
     
-        # Before running sync modes, update channel metadata if API key is available
+        # Before running sync modes, update channel metadata
         if not args.update_channel:  # Don't do this if we're already in update_channel mode
-            youtube_api_key = youtube_config.get("api_key")
-            if youtube_api_key:
-                logger.info("Found YouTube API key in config, will update channel metadata before syncing videos")
-                for channel in channels:
-                    update_channel_metadata(channel, mediacms_url, youtube_api_key)
-            else:
-                logger.warning("No YouTube API key found in config, channel metadata will not be updated")
-    
-        # Default: channel sync mode.
+            logger.info("Will update channel metadata before syncing videos")
+            for channel in channels:
+                update_channel_metadata(channel, mediacms_url, youtube_api_key)
+                
+        # Default: channel sync mode
         if not channels:
             logger.error("No channels defined in configuration.")
             sys.exit(1)
+            
         logger.info(f"Running in {args.mode} mode for {len(channels)} channel(s).")
         for channel in channels:
             if args.mode == "new":
-                # For new mode, we still use the original implementation
-                sync_channel_new(channel, mediacms_url, args.delay, args.keep_files, youtube_config.get("api_key"))
+                sync_channel_new(channel, mediacms_url, args.delay, args.keep_files, youtube_api_key)
             elif args.mode == "full":
-                # For full mode, use our new improved implementation
-                sync_channel_improved(
-                    channel,
-                    mediacms_url,
-                    args.delay,
-                    args.keep_files,
-                    youtube_api_key=youtube_config.get("api_key"),
-                    download_workers=args.download_workers,
-                    upload_workers=args.upload_workers,
-                    wait_for_encoding=args.wait_for_encoding
-                )
+                # Use improved implementation for multiple workers or TUI
+                if args.download_workers > 1 or args.upload_workers > 1 or args.tui:
+                    sync_channel_improved(
+                        channel,
+                        mediacms_url,
+                        args.delay,
+                        args.keep_files,
+                        youtube_api_key,
+                        download_workers=args.download_workers,
+                        upload_workers=args.upload_workers,
+                        wait_for_encoding=args.wait_for_encoding
+                    )
+                else:
+                    # Use simple implementation for single worker
+                    sync_channel_full(
+                        channel,
+                        mediacms_url,
+                        args.delay,
+                        args.keep_files,
+                        youtube_api_key
+                    )
     except KeyboardInterrupt:
         logger.info("Process interrupted by user. Exiting...")
         sys.exit(1)
@@ -1908,7 +1985,6 @@ def main():
         # Always clean up TUI if enabled
         if tui_enabled:
             disable_tui()
-
 
 if __name__ == "__main__":
     try:
