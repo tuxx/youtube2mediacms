@@ -13,7 +13,7 @@ This script is intended only for syncing videos you own (e.g., your personal You
 
 ## 🆕 Latest Changes 
 
-### [v1.0.1] - 2025-03-06
+### (v1.0.1)
 
 #### Fixed
 - Fixed a bug where the script incorrectly considered videos fully encoded when only lower resolutions were ready while higher resolutions were still processing.
