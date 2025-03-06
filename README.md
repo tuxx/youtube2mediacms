@@ -11,20 +11,27 @@ This script allows you to sync your YouTube videos to a MediaCMS instance. It of
 ## ⚠️ Important Notice
 This script is intended only for syncing videos you own (e.g., your personal YouTube channel content). Do not use it to download or upload copyrighted content that you do not have permission to redistribute. Unauthorized copying of copyrighted material may violate YouTube's Terms of Service and copyright laws.
 
-## 🆕 Latest Changes (v1.0.0)
+## 🆕 Latest Changes 
 
-### Added
+### [v1.0.1] - 2025-03-06
+
+#### Fixed
+- Fixed a bug where the script incorrectly considered videos fully encoded when only lower resolutions were ready while higher resolutions were still processing.
+
+### (v1.0.0)
+
+#### Added
 - Parallel downloading and uploading with configurable workers
 - Smart encoding status tracking using MediaCMS API
 - Interactive TUI mode with live status updates
 - Wait-for-encoding option to prevent server overload
 
-### Changed
+#### Changed
 - Removed dependency on mediacms_user in config.json
 - Improved metadata race condition handling with retries
 - Enhanced command-line arguments for better control
 
-### Fixed
+#### Fixed
 - Race condition in metadata file handling
 - Better error handling during upload process
 
