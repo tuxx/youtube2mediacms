@@ -1,5 +1,6 @@
 import logging
 import time
+import os
 from .constants import OUTPUT_DIR
 
 logger = logging.getLogger('yt2mediacms')
