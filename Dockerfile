@@ -7,6 +7,7 @@ WORKDIR /app
 # Install yt-dlp and other dependencies
 RUN apk add --no-cache ffmpeg  # Install ffmpeg for video processing
 RUN pip install --no-cache-dir yt-dlp
+RUN mkdir /app/src
 
 # Copy the requirements file and install other dependencies
 COPY requirements.txt .
@@ -14,6 +15,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy the Python script and any other necessary files
 COPY yt2mediacms.py .
+COPY src /app/src/
 
 # Set environment variables for better TUI support
 ENV PYTHONIOENCODING=utf-8

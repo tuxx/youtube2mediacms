@@ -1,3 +1,4 @@
 youtube_downloads
 config.json
 virtual
+src/__pycache__
