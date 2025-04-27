@@ -5,6 +5,7 @@ import time
 from subprocess import Popen, PIPE, STDOUT
 from .utils import clean_up_files
 from .constants import OUTPUT_DIR
+import googleapiclient.discovery
 
 logger = logging.getLogger('yt2mediacms')
 
@@ -31,7 +32,6 @@ def fetch_videos_with_api(channel_id, api_key, published_after=None, max_results
     Returns:
     - List of dictionaries with video details
     """
-    import googleapiclient.discovery
 
     logger.info(f"Fetching videos via YouTube API for channel: {channel_id}")
     
