@@ -3,6 +3,7 @@ import requests
 import logging
 import time
 import json
+from .utils import clean_up_files
 
 logger = logging.getLogger('yt2mediacms')
 

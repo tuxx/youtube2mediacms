@@ -1,9 +1,9 @@
 import logging
 import subprocess
 import os
+import json
 import time
 from subprocess import Popen, PIPE, STDOUT
-from .utils import clean_up_files
 from .constants import OUTPUT_DIR
 import googleapiclient.discovery
 
