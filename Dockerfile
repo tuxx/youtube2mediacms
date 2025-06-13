@@ -22,5 +22,11 @@ ENV PYTHONIOENCODING=utf-8
 ENV TERM=xterm-256color
 ENV COLORTERM=truecolor
 
-ENTRYPOINT ["python", "yt2mediacms.py"]
+# Create a shell script to handle the update and execution
+RUN echo '#!/bin/sh' > /app/entrypoint.sh && \
+    echo 'pip install --upgrade yt-dlp' >> /app/entrypoint.sh && \
+    echo 'python yt2mediacms.py "$@"' >> /app/entrypoint.sh && \
+    chmod +x /app/entrypoint.sh
+
+ENTRYPOINT ["/app/entrypoint.sh"]
 
