@@ -2,6 +2,11 @@
 
 All notable changes to this project will be documented in this file.
 
+## [v1.0.4] - 2025-06-13
+
+### Changed
+- Update yt-dlp python library when container runs.
+
 ## [v1.0.3] - 2025-04-27
 
 ### Changed
