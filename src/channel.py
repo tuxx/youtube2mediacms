@@ -14,7 +14,8 @@ from .youtube import (
     get_video_metadata
 )
 from .mediacms import (
-    get_latest_mediacms_video_info, 
+    get_latest_mediacms_video_info,
+    get_mediacms_username, 
     update_mediacms_channel,
     upload_to_mediacms
 )
