@@ -2,6 +2,17 @@
 
 All notable changes to this project will be documented in this file.
 
+## [v1.0.5] - 2025-10-17
+
+### Fixed
+- sync_video_ids method is failing because a missing import of get_mediacms_username 
+
+### Pull Request
+- https://github.com/tuxx/youtube2mediacms/pull/2
+
+### Contributors
+- https://github.com/lucasferraro
+
 ## [v1.0.4] - 2025-06-13
 
 ### Changed
